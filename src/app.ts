@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/authRoutes";
 import jobRoutes from "./routes/jobRoutes";
-
+import applicationRoutes from "./routes/applicationRoutes";
 const app = express();
 
 // Middlewares
@@ -24,5 +24,5 @@ app.get("/", (req, res) => {
 // Authentication Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
-
+app.use("/api/applications", applicationRoutes);
 export default app;
