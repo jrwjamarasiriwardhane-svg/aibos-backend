@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   applyForJob,
   getApplicationsByJob,
+  getMyApplications,
   updateApplicationStatus,
 } from "../controllers/applicationController";
 
@@ -10,9 +11,9 @@ import { authorize } from "../middleware/roleMiddleware";
 
 const router = Router();
 
-console.log("✅ Application Routes Loaded");
-
+// ==============================
 // Test Route
+// ==============================
 router.get("/test", (req, res) => {
   res.json({
     success: true,
@@ -20,7 +21,11 @@ router.get("/test", (req, res) => {
   });
 });
 
-// Professional Apply Job
+// ==============================
+// Professional Routes
+// ==============================
+
+// Apply for Job
 router.post(
   "/apply",
   protect,
@@ -28,7 +33,19 @@ router.post(
   applyForJob
 );
 
-// Company View Applicants
+// My Applications
+router.get(
+  "/my-applications",
+  protect,
+  authorize("professional"),
+  getMyApplications
+);
+
+// ==============================
+// Company Routes
+// ==============================
+
+// View Applicants for a Job
 router.get(
   "/job/:jobId",
   protect,
@@ -36,18 +53,13 @@ router.get(
   getApplicationsByJob
 );
 
-// Company Accept / Reject Application
+// Accept / Reject Application
 router.put(
   "/:applicationId/status",
   protect,
   authorize("company"),
   updateApplicationStatus
-);
-router.get(
-  "/job/:jobId",
-  protect,
-  authorize("company"),
-  getApplicationsByJob
+
 );
 
 export default router;

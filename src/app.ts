@@ -5,6 +5,15 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes";
 import jobRoutes from "./routes/jobRoutes";
 import applicationRoutes from "./routes/applicationRoutes";
+import professionalProfileRoutes from "./routes/professionalProfileRoutes";
+import serviceRequestRoutes from "./routes/serviceRequestRoutes";
+import professionalRoutes from "./routes/professionalRoutes";
+import adminRoutes from "./routes/adminRoutes";
+import userRoutes from "./routes/userRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+import aiRoutes from "./routes/aiRoutes";
+import { notFoundHandler, errorHandler } from "./middleware/errorMiddleware";
+
 const app = express();
 
 // Middlewares
@@ -17,12 +26,24 @@ app.use(cookieParser());
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "🚀 Welcome to AIBOS Backend",
+    message: "🚀 Welcome to AIBOS Backend API",
   });
 });
 
-// Authentication Routes
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/professional-profile", professionalProfileRoutes);
+app.use("/api/service-requests", serviceRequestRoutes);
+app.use("/api/professionals", professionalRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/ai", aiRoutes);
+
+// Error Handling Middleware
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 export default app;

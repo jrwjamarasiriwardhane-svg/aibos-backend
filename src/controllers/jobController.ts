@@ -1,16 +1,24 @@
-import { Request, Response } from "express";
+import { Response } from "express";
+import mongoose from "mongoose";
 import Job from "../models/Job";
+import Application from "../models/Application";
 import { AuthRequest } from "../middleware/authMiddleware";
 
-// ==============================
-// Create Job
-// ==============================
-export const createJob = async (
-  req: AuthRequest,
-  res: Response
-) => {
+// ==========================================
+// CREATE JOB - COMPANY
+// ==========================================
+export const createJob = async (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, category, location, salary } = req.body;
+    const { title, description, category, location, salary, status } = req.body;
+
+    if (!title || !description || !category || !location || salary === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, description, category, location, and salary are required",
+      });
+    }
+
+    const userId = req.user?.id || req.user?._id;
 
     const job = await Job.create({
       title,
@@ -18,96 +26,107 @@ export const createJob = async (
       category,
       location,
       salary,
-      company: req.user.id,
+      company: userId,
+      status: status || "open",
     });
 
-    res.status(201).json({
+    const populatedJob = await Job.findById(job._id).populate(
+      "company",
+      "fullName email phone profileImage"
+    );
+
+    return res.status(201).json({
       success: true,
       message: "Job created successfully",
-      job,
+      job: populatedJob,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
+    console.error("CREATE JOB ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
 
-// ==============================
-// Get All Jobs
-// ==============================
-export const getAllJobs = async (
-  req: Request,
-  res: Response
-) => {
+// ==========================================
+// GET ALL JOBS - PUBLIC (With Filter, Search & Pagination)
+// ==========================================
+export const getAllJobs = async (req: AuthRequest, res: Response) => {
   try {
-    const {
-      search,
-      category,
-      location,
-      page = "1",
-      limit = "10",
-    } = req.query;
+    const { search, category, location, status, page = 1, limit = 10 } = req.query;
 
     const query: any = {};
 
-    if (search) {
-      query.title = {
-        $regex: search,
-        $options: "i",
-      };
+    // By default, show open jobs unless status query filter is specified
+    if (status) {
+      if (status !== "all") {
+        query.status = status;
+      }
+    } else {
+      query.status = "open";
     }
 
     if (category) {
-      query.category = category;
+      query.category = { $regex: category as string, $options: "i" };
     }
 
     if (location) {
-      query.location = location;
+      query.location = { $regex: location as string, $options: "i" };
     }
 
-    const currentPage = Number(page);
-    const pageSize = Number(limit);
+    if (search) {
+      query.$or = [
+        { title: { $regex: search as string, $options: "i" } },
+        { description: { $regex: search as string, $options: "i" } },
+      ];
+    }
 
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit as string, 10) || 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await Job.countDocuments(query);
     const jobs = await Job.find(query)
-      .populate("company", "fullName email")
+      .populate("company", "fullName email phone profileImage")
       .sort({ createdAt: -1 })
-      .skip((currentPage - 1) * pageSize)
-      .limit(pageSize);
+      .skip(skip)
+      .limit(limitNum);
 
-    const totalJobs = await Job.countDocuments(query);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      totalJobs,
-      currentPage,
-      totalPages: Math.ceil(totalJobs / pageSize),
+      count: jobs.length,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
       jobs,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
+    console.error("GET ALL JOBS ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
 
-// ==============================
-// Get Job By ID
-// ==============================
-export const getJobById = async (
-  req: Request,
-  res: Response
-) => {
+// ==========================================
+// GET SINGLE JOB - PUBLIC
+// ==========================================
+export const getJobById = async (req: AuthRequest, res: Response) => {
   try {
-    const job = await Job.findById(req.params.id).populate(
+    const id = req.params.id as string;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid job ID",
+      });
+    }
+
+    const job = await Job.findById(id).populate(
       "company",
-      "fullName email"
+      "fullName email phone profileImage location"
     );
 
     if (!job) {
@@ -117,29 +136,67 @@ export const getJobById = async (
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       job,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
+    console.error("GET JOB BY ID ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
 
-// ==============================
-// Update Job
-// ==============================
-export const updateJob = async (
-  req: AuthRequest,
-  res: Response
-) => {
+// ==========================================
+// GET MY JOBS - COMPANY
+// ==========================================
+export const getMyJobs = async (req: AuthRequest, res: Response) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const userId = req.user?.id || req.user?._id;
+    const { status } = req.query;
+
+    const query: any = { company: userId };
+
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    const jobs = await Job.find(query)
+      .populate("company", "fullName email phone profileImage")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: jobs.length,
+      jobs,
+    });
+  } catch (error) {
+    console.error("GET MY JOBS ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+// ==========================================
+// UPDATE JOB - COMPANY
+// ==========================================
+export const updateJob = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid job ID",
+      });
+    }
+
+    const userId = req.user?.id || req.user?._id;
+    const job = await Job.findById(id);
 
     if (!job) {
       return res.status(404).json({
@@ -148,46 +205,48 @@ export const updateJob = async (
       });
     }
 
-    if (job.company.toString() !== req.user.id) {
+    if (job.company.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Access Denied",
+        message: "Access Denied: You are not authorized to update this job",
       });
     }
 
-    const updatedJob = await Job.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const updatedJob = await Job.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    }).populate("company", "fullName email phone profileImage");
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Job updated successfully",
       job: updatedJob,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
+    console.error("UPDATE JOB ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
 
-// ==============================
-// Delete Job
-// ==============================
-export const deleteJob = async (
-  req: AuthRequest,
-  res: Response
-) => {
+// ==========================================
+// DELETE JOB - COMPANY
+// ==========================================
+export const deleteJob = async (req: AuthRequest, res: Response) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const id = req.params.id as string;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid job ID",
+      });
+    }
+
+    const userId = req.user?.id || req.user?._id;
+    const job = await Job.findById(id);
 
     if (!job) {
       return res.status(404).json({
@@ -196,50 +255,27 @@ export const deleteJob = async (
       });
     }
 
-    if (job.company.toString() !== req.user.id) {
+    if (job.company.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Access Denied",
+        message: "Access Denied: You are not authorized to delete this job",
       });
     }
 
-    await Job.findByIdAndDelete(req.params.id);
+    await job.deleteOne();
 
-    res.status(200).json({
+    // Clean up applications for this job
+    await Application.deleteMany({ job: id });
+
+    return res.status(200).json({
       success: true,
       message: "Job deleted successfully",
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
+    console.error("DELETE JOB ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
-// Get My Jobs
-export const getMyJobs = async (
-  req: AuthRequest,
-  res: Response
-) => {
-  try {
-    const jobs = await Job.find({
-      company: req.user.id,
-    }).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: jobs.length,
-      jobs,
-    });
-
-  } catch (error) {
-  console.error(error);
-
-  res.status(500).json({
-    success: false,
-    message: "Server Error",
-  });
-}
-}

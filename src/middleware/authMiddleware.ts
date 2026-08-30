@@ -5,7 +5,6 @@ export interface AuthRequest extends Request {
   user?: any;
 }
 
-
 export const protect = (
   req: AuthRequest,
   res: Response,
@@ -28,10 +27,16 @@ export const protect = (
       process.env.JWT_SECRET as string
     );
 
+    console.log("========== AUTH DEBUG ==========");
+    console.log("DECODED JWT:", decoded);
+    console.log("================================");
+
     req.user = decoded;
 
     next();
   } catch (error) {
+    console.error("AUTH ERROR:", error);
+
     return res.status(401).json({
       success: false,
       message: "Invalid token",

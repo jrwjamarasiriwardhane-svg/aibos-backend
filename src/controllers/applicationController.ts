@@ -3,7 +3,9 @@ import Application from "../models/Application";
 import Job from "../models/Job";
 import { AuthRequest } from "../middleware/authMiddleware";
 
-// Apply for a Job
+// ==============================
+// Apply for Job
+// ==============================
 export const applyForJob = async (
   req: AuthRequest,
   res: Response
@@ -11,7 +13,6 @@ export const applyForJob = async (
   try {
     const { jobId, coverLetter } = req.body;
 
-    // Check if job exists
     const job = await Job.findById(jobId);
 
     if (!job) {
@@ -21,7 +22,6 @@ export const applyForJob = async (
       });
     }
 
-    // Check if already applied
     const existingApplication = await Application.findOne({
       professional: req.user.id,
       job: jobId,
@@ -34,7 +34,6 @@ export const applyForJob = async (
       });
     }
 
-    // Create application
     const application = await Application.create({
       professional: req.user.id,
       job: jobId,
@@ -55,9 +54,60 @@ export const applyForJob = async (
       message: "Server Error",
     });
   }
-  
 };
-// Update Application Status
+
+// ==============================
+// Company - View Applicants
+// ==============================
+export const getApplicationsByJob = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    if (job.company.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access Denied",
+      });
+    }
+
+    const applications = await Application.find({
+      job: jobId,
+    }).populate(
+      "professional",
+      "fullName email phone"
+    );
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      applications,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+// ==============================
+// Company - Accept / Reject
+// ==============================
 export const updateApplicationStatus = async (
   req: AuthRequest,
   res: Response
@@ -66,7 +116,6 @@ export const updateApplicationStatus = async (
     const { applicationId } = req.params;
     const { status } = req.body;
 
-    // Only accepted or rejected
     if (!["accepted", "rejected"].includes(status)) {
       return res.status(400).json({
         success: false,
@@ -74,7 +123,8 @@ export const updateApplicationStatus = async (
       });
     }
 
-    const application = await Application.findById(applicationId).populate("job");
+    const application: any = await Application.findById(applicationId)
+      .populate("job");
 
     if (!application) {
       return res.status(404).json({
@@ -83,10 +133,7 @@ export const updateApplicationStatus = async (
       });
     }
 
-    const job: any = application.job;
-
-    // Owner check
-    if (job.company.toString() !== req.user.id) {
+    if (application.job.company.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Access Denied",
@@ -94,6 +141,7 @@ export const updateApplicationStatus = async (
     }
 
     application.status = status;
+
     await application.save();
 
     res.status(200).json({
@@ -111,39 +159,28 @@ export const updateApplicationStatus = async (
     });
   }
 };
-// Get Applications for a Job
-export const getApplicationsByJob = async (
+
+// ==============================
+// Professional - My Applications
+// ==============================
+export const getMyApplications = async (
   req: AuthRequest,
   res: Response
 ) => {
   try {
-    const { jobId } = req.params;
 
-    // Find Job
-    const job = await Job.findById(jobId);
-
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        message: "Job not found",
-      });
-    }
-
-    // Check Job Owner
-    if (job.company.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Access Denied",
-      });
-    }
-
-    // Get Applications
     const applications = await Application.find({
-      job: jobId,
-    }).populate(
-      "professional",
-      "fullName email phone"
-    );
+      professional: req.user.id,
+    })
+      .populate({
+        path: "job",
+        select: "title description category location salary status",
+        populate: {
+          path: "company",
+          select: "fullName email phone",
+        },
+      })
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
