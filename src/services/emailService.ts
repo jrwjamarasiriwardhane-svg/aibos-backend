@@ -1,23 +1,45 @@
+import "dotenv/config";
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s+/g, "") : "",
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const getTransporter = () => {
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // use STARTTLS
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s+/g, "") : "",
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    family: 4, // Force IPv4 to prevent IPv6 connection refused issues
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
+  } as nodemailer.TransportOptions);
+};
+
+// Verify connection configuration on startup
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  const transporter = getTransporter();
+  transporter.verify((error) => {
+    if (error) {
+      console.error("❌ Email Transporter Connection Failed:", error.message);
+    } else {
+      console.log("✅ Email Transporter Ready (SMTP Connected)");
+    }
+  });
+} else {
+  console.warn("⚠️ EMAIL_USER or EMAIL_PASS environment variables are not set. Emails will not send.");
+}
 
 export const sendVerificationEmail = async (
   email: string,
   fullName: string,
   code: string
 ) => {
+  const transporter = getTransporter();
   await transporter.sendMail({
     from: `"AIBOS" <${process.env.EMAIL_USER}>`,
     to: email,
