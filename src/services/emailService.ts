@@ -2,43 +2,72 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import path from "path";
 
+// ==========================================
+// LOAD ENVIRONMENT VARIABLES
+// ==========================================
+
 dotenv.config({
   path: path.resolve(process.cwd(), ".env"),
 });
 
+// ==========================================
+// EMAIL CONFIGURATION
+// ==========================================
+
 const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
 
-// Your Render variable is EMAIL_PASS
-const EMAIL_APP_PASSWORD = process.env.EMAIL_PASS;
+// ==========================================
+// DEBUG
+// ==========================================
 
-console.log("========== EMAIL DEBUG ==========");
+console.log("=================================");
+console.log("📧 EMAIL ENVIRONMENT CHECK");
+console.log("=================================");
 console.log("EMAIL_USER:", EMAIL_USER ? "LOADED" : "MISSING");
+console.log("EMAIL_PASS:", EMAIL_PASS ? "LOADED" : "MISSING");
 console.log(
-  "EMAIL_APP_PASSWORD:",
-  EMAIL_APP_PASSWORD ? "LOADED" : "MISSING"
+  "EMAIL_PASS LENGTH:",
+  EMAIL_PASS?.length ?? 0
 );
 console.log("=================================");
 
-if (!EMAIL_USER || !EMAIL_APP_PASSWORD) {
+// ==========================================
+// VALIDATE
+// ==========================================
+
+if (!EMAIL_USER || !EMAIL_PASS) {
   throw new Error(
     "EMAIL_USER or EMAIL_PASS is missing in Render Environment Variables"
   );
 }
 
+// ==========================================
+// GMAIL SMTP
+// ==========================================
+
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+
+  // STARTTLS
+  port: 587,
+
+  secure: false,
 
   auth: {
     user: EMAIL_USER,
-    pass: EMAIL_APP_PASSWORD,
+    pass: EMAIL_PASS,
   },
 
   tls: {
     rejectUnauthorized: false,
   },
+
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
 });
+
 // ==========================================
 // SEND VERIFICATION EMAIL
 // ==========================================
@@ -57,7 +86,7 @@ export const sendVerificationEmail = async (
     console.log("=================================");
 
     // ==========================================
-    // TEST SMTP CONNECTION
+    // CHECK SMTP CONNECTION
     // ==========================================
 
     await transporter.verify();
@@ -70,9 +99,7 @@ export const sendVerificationEmail = async (
 
     const info = await transporter.sendMail({
       from: `"AIBOS" <${EMAIL_USER}>`,
-
       to: email,
-
       subject: `🔐 ${code} is your AIBOS Verification Code`,
 
       html: `
