@@ -390,6 +390,30 @@ export const login = async (
     // ================================================
 
     if (!user.isEmailVerified) {
+      const codeExpired =
+        !user.emailVerificationExpires ||
+        user.emailVerificationExpires.getTime() < Date.now();
+
+      if (!user.emailVerificationCode || codeExpired) {
+        const verificationCode = Math.floor(
+          100000 + Math.random() * 900000
+        ).toString();
+        user.emailVerificationCode = verificationCode;
+        user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+        try {
+          await sendVerificationEmail(user.email, user.fullName, verificationCode);
+        } catch (emailErr) {
+          console.error("LOGIN VERIFICATION EMAIL ERROR:", emailErr);
+          console.log(
+            `\n==================================================\n🔑 VERIFICATION CODE for ${user.email}: ${verificationCode}\n==================================================\n`
+          );
+        }
+      }
+
+      // #region agent log
+      try { require("fs").appendFileSync(require("path").join(__dirname, "../../../debug-c1632a.log"), JSON.stringify({sessionId:"c1632a",runId:"post-fix",hypothesisId:"B",location:"authController.ts:login",message:"login blocked unverified email",data:{role:user.role,hasCode:Boolean(user.emailVerificationCode),isEmailVerified:user.isEmailVerified,codeIssued:true},timestamp:Date.now()})+"\n"); } catch (_e) {}
+      // #endregion
       return res.status(403).json({
         success: false,
 
@@ -400,6 +424,7 @@ export const login = async (
           true,
 
         email: user.email,
+        role: user.role,
       });
     }
 
@@ -538,4 +563,4 @@ export const resendVerificationCode = async (
       message: "Server Error",
     });
   }
-};
+};

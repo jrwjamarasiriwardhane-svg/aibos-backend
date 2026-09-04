@@ -51,7 +51,8 @@ const createAdmin = async () => {
       phone: "0000000000",
       password: hashedPassword,
       role: "admin",
-      isVerified: true,
+      isEmailVerified: true,
+      isAdminVerified: true,
     });
 
     console.log("");

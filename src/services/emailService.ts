@@ -1,149 +1,275 @@
-import "dotenv/config";
-import { Resend } from "resend";
+import dotenv from "dotenv";
+import nodemailer from "nodemailer";
+import path from "path";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ==========================================
+// LOAD ENVIRONMENT VARIABLES
+// ==========================================
+
+dotenv.config({
+  path: path.resolve(process.cwd(), ".env"),
+});
+
+// ==========================================
+// EMAIL CONFIGURATION
+// ==========================================
+
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
+
+console.log("=================================");
+console.log("📧 EMAIL ENVIRONMENT CHECK");
+console.log("=================================");
+console.log(
+  "EMAIL_USER:",
+  EMAIL_USER || "❌ MISSING"
+);
+console.log(
+  "EMAIL_APP_PASSWORD:",
+  EMAIL_APP_PASSWORD ? "✅ LOADED" : "❌ MISSING"
+);
+console.log("=================================");
+
+// ==========================================
+// VALIDATE EMAIL CREDENTIALS
+// ==========================================
+
+if (!EMAIL_USER || !EMAIL_APP_PASSWORD) {
+  throw new Error(
+    "EMAIL_USER or EMAIL_APP_PASSWORD is not configured in Backend/.env"
+  );
+}
+
+// ==========================================
+// GMAIL SMTP TRANSPORTER
+// ==========================================
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+
+  auth: {
+    user: EMAIL_USER,
+    pass: EMAIL_APP_PASSWORD,
+  },
+
+  // Temporary fix for local certificate-chain issue
+  // Remove this before production if the certificate
+  // problem is resolved.
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
+// ==========================================
+// SEND VERIFICATION EMAIL
+// ==========================================
 
 export const sendVerificationEmail = async (
   email: string,
   fullName: string,
   code: string
 ) => {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
-
   try {
-    const { data, error } = await resend.emails.send({
-      from: "AIBOS <onboarding@resend.dev>",
-      to: [email],
+    console.log("=================================");
+    console.log("📧 SENDING VERIFICATION EMAIL");
+    console.log("=================================");
+    console.log("📩 To:", email);
+    console.log("👤 Name:", fullName);
+    console.log("=================================");
+
+    // ==========================================
+    // CHECK SMTP CONNECTION
+    // ==========================================
+
+    await transporter.verify();
+
+    console.log("✅ Gmail SMTP connection successful");
+
+    // ==========================================
+    // SEND EMAIL
+    // ==========================================
+
+    const info = await transporter.sendMail({
+      from: `"AIBOS" <${EMAIL_USER}>`,
+
+      to: email,
+
       subject: `🔐 ${code} is your AIBOS Verification Code`,
+
       html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>AIBOS Verification</title>
-        </head>
+<!DOCTYPE html>
+<html>
 
-        <body style="
-          margin:0;
-          padding:40px 15px;
-          background:#0b0f19;
-          font-family:Arial, sans-serif;
-        ">
-          <div style="
-            max-width:540px;
-            margin:auto;
-            background:#111827;
-            border:1px solid #1e293b;
-            border-radius:20px;
-            padding:36px;
-            color:#f8fafc;
-          ">
+<head>
+  <meta charset="UTF-8">
 
-            <h1 style="
-              text-align:center;
-              color:#38bdf8;
-              margin-bottom:5px;
-            ">
-              AIBOS
-            </h1>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-            <p style="
-              text-align:center;
-              color:#94a3b8;
-              font-size:13px;
-              letter-spacing:1px;
-            ">
-              AI BUSINESS OPERATING SYSTEM
-            </p>
+  <title>AIBOS Verification</title>
+</head>
 
-            <h2 style="
-              text-align:center;
-              margin-top:35px;
-            ">
-              Verify Your Account
-            </h2>
+<body style="
+  margin:0;
+  padding:40px 15px;
+  background:#0b0f19;
+  font-family:Arial,sans-serif;
+">
 
-            <p style="color:#cbd5e1; line-height:1.6;">
-              Hello <strong>${fullName}</strong>,
-            </p>
+  <div style="
+    max-width:540px;
+    margin:auto;
+    background:#111827;
+    border:1px solid #1e293b;
+    border-radius:20px;
+    padding:36px;
+    color:#f8fafc;
+  ">
 
-            <p style="color:#cbd5e1; line-height:1.6;">
-              Welcome to AIBOS! Use the verification code below
-              to complete your registration.
-            </p>
+    <!-- AIBOS -->
 
-            <div style="
-              margin:30px 0;
-              padding:25px;
-              text-align:center;
-              background:#1e293b;
-              border:2px dashed #38bdf8;
-              border-radius:16px;
-            ">
+    <h1 style="
+      text-align:center;
+      color:#38bdf8;
+      margin-bottom:5px;
+    ">
+      AIBOS
+    </h1>
 
-              <div style="
-                font-size:11px;
-                font-weight:bold;
-                letter-spacing:2px;
-                color:#94a3b8;
-              ">
-                VERIFICATION CODE
-              </div>
+    <p style="
+      text-align:center;
+      color:#94a3b8;
+      font-size:13px;
+      letter-spacing:1px;
+    ">
+      AI BUSINESS OPERATING SYSTEM
+    </p>
 
-              <div style="
-                margin-top:12px;
-                font-size:38px;
-                font-weight:bold;
-                letter-spacing:10px;
-                color:#38bdf8;
-                font-family:'Courier New', monospace;
-              ">
-                ${code}
-              </div>
+    <!-- TITLE -->
 
-            </div>
+    <h2 style="
+      text-align:center;
+      margin-top:35px;
+      color:#f8fafc;
+    ">
+      Verify Your Account
+    </h2>
 
-            <p style="
-              text-align:center;
-              color:#94a3b8;
-              line-height:1.6;
-            ">
-              This code will expire in
-              <strong style="color:#f59e0b;">
-                10 minutes
-              </strong>.
-            </p>
+    <!-- GREETING -->
 
-            <p style="
-              text-align:center;
-              color:#64748b;
-              font-size:12px;
-              margin-top:30px;
-            ">
-              If you did not create an AIBOS account,
-              please ignore this email.
-            </p>
+    <p style="
+      color:#cbd5e1;
+      line-height:1.6;
+    ">
+      Hello <strong>${fullName}</strong>,
+    </p>
 
-          </div>
-        </body>
-        </html>
+    <p style="
+      color:#cbd5e1;
+      line-height:1.6;
+    ">
+      Welcome to AIBOS! Use the verification code below
+      to complete your registration.
+    </p>
+
+    <!-- OTP BOX -->
+
+    <div style="
+      margin:30px 0;
+      padding:25px;
+      text-align:center;
+      background:#1e293b;
+      border:2px dashed #38bdf8;
+      border-radius:16px;
+    ">
+
+      <div style="
+        font-size:11px;
+        font-weight:bold;
+        letter-spacing:2px;
+        color:#94a3b8;
+      ">
+        VERIFICATION CODE
+      </div>
+
+      <div style="
+        margin-top:12px;
+        font-size:38px;
+        font-weight:bold;
+        letter-spacing:10px;
+        color:#38bdf8;
+        font-family:'Courier New',monospace;
+      ">
+        ${code}
+      </div>
+
+    </div>
+
+    <!-- EXPIRATION -->
+
+    <p style="
+      text-align:center;
+      color:#94a3b8;
+      line-height:1.6;
+    ">
+      This code will expire in
+
+      <strong style="
+        color:#f59e0b;
+      ">
+        10 minutes
+      </strong>.
+    </p>
+
+    <!-- FOOTER -->
+
+    <p style="
+      text-align:center;
+      color:#64748b;
+      font-size:12px;
+      margin-top:30px;
+    ">
+      If you did not create an AIBOS account,
+      please ignore this email.
+    </p>
+
+  </div>
+
+</body>
+</html>
       `,
     });
 
-    if (error) {
-      console.error("❌ Resend error:", error);
-      throw new Error(error.message);
-    }
+    // ==========================================
+    // SUCCESS
+    // ==========================================
 
-    console.log(`✅ Verification email sent to ${email}`);
-    console.log(`📧 Resend message ID: ${data?.id}`);
+    console.log("=================================");
+    console.log("✅ EMAIL SENT SUCCESSFULLY");
+    console.log("=================================");
+    console.log("📩 To:", email);
+    console.log("📧 Message ID:", info.messageId);
+    console.log("=================================");
 
-    return data;
+    return info;
+
   } catch (error) {
-    console.error("❌ Verification email failed:", error);
+
+    // ==========================================
+    // ERROR
+    // ==========================================
+
+    console.error("=================================");
+    console.error("❌ EMAIL SEND FAILED");
+    console.error("=================================");
+    console.error("📩 To:", email);
+    console.error("Error:", error);
+    console.error("=================================");
+
     throw error;
   }
 };
