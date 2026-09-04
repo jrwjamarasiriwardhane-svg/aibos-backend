@@ -17,16 +17,16 @@ dotenv.config({
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
 
-console.log("=================================");
-console.log("📧 EMAIL ENVIRONMENT CHECK");
-console.log("=================================");
+console.log("========== EMAIL DEBUG ==========");
+console.log("EMAIL_USER exists:", !!EMAIL_USER);
+console.log("EMAIL_USER value:", EMAIL_USER);
 console.log(
-  "EMAIL_USER:",
-  EMAIL_USER || "❌ MISSING"
+  "EMAIL_APP_PASSWORD exists:",
+  !!EMAIL_APP_PASSWORD
 );
 console.log(
-  "EMAIL_APP_PASSWORD:",
-  EMAIL_APP_PASSWORD ? "✅ LOADED" : "❌ MISSING"
+  "EMAIL_APP_PASSWORD length:",
+  EMAIL_APP_PASSWORD?.length
 );
 console.log("=================================");
 
