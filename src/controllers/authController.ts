@@ -407,14 +407,17 @@ export const login = async (
     // CREATE JWT
     // ================================================
 
+    const jwtSecret =
+      process.env.JWT_SECRET ||
+      "aibos_super_secret_jwt_key_2026";
+
     const token = jwt.sign(
       {
-        id: user._id,
+        id: user._id.toString(),
         role: user.role,
+        email: user.email,
       },
-
-      process.env.JWT_SECRET as string,
-
+      jwtSecret,
       {
         expiresIn: "7d",
       }
@@ -447,7 +450,7 @@ export const login = async (
       },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       "LOGIN ERROR:",
       error
@@ -455,7 +458,7 @@ export const login = async (
 
     return res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: error?.message || "Server Error",
     });
   }
 };
