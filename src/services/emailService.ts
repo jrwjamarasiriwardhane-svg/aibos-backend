@@ -2,47 +2,28 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import path from "path";
 
-// ==========================================
-// LOAD ENVIRONMENT VARIABLES
-// ==========================================
-
 dotenv.config({
   path: path.resolve(process.cwd(), ".env"),
 });
 
-// ==========================================
-// EMAIL CONFIGURATION
-// ==========================================
-
 const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
+
+// Your Render variable is EMAIL_PASS
+const EMAIL_APP_PASSWORD = process.env.EMAIL_PASS;
 
 console.log("========== EMAIL DEBUG ==========");
-console.log("EMAIL_USER exists:", !!EMAIL_USER);
-console.log("EMAIL_USER value:", EMAIL_USER);
+console.log("EMAIL_USER:", EMAIL_USER ? "LOADED" : "MISSING");
 console.log(
-  "EMAIL_APP_PASSWORD exists:",
-  !!EMAIL_APP_PASSWORD
-);
-console.log(
-  "EMAIL_APP_PASSWORD length:",
-  EMAIL_APP_PASSWORD?.length
+  "EMAIL_APP_PASSWORD:",
+  EMAIL_APP_PASSWORD ? "LOADED" : "MISSING"
 );
 console.log("=================================");
 
-// ==========================================
-// VALIDATE EMAIL CREDENTIALS
-// ==========================================
-
 if (!EMAIL_USER || !EMAIL_APP_PASSWORD) {
   throw new Error(
-    "EMAIL_USER or EMAIL_APP_PASSWORD is not configured in Backend/.env"
+    "EMAIL_USER or EMAIL_PASS is missing in Render Environment Variables"
   );
 }
-
-// ==========================================
-// GMAIL SMTP TRANSPORTER
-// ==========================================
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -54,14 +35,10 @@ const transporter = nodemailer.createTransport({
     pass: EMAIL_APP_PASSWORD,
   },
 
-  // Temporary fix for local certificate-chain issue
-  // Remove this before production if the certificate
-  // problem is resolved.
   tls: {
     rejectUnauthorized: false,
   },
 });
-
 // ==========================================
 // SEND VERIFICATION EMAIL
 // ==========================================
@@ -80,7 +57,7 @@ export const sendVerificationEmail = async (
     console.log("=================================");
 
     // ==========================================
-    // CHECK SMTP CONNECTION
+    // TEST SMTP CONNECTION
     // ==========================================
 
     await transporter.verify();
@@ -130,8 +107,6 @@ export const sendVerificationEmail = async (
     color:#f8fafc;
   ">
 
-    <!-- AIBOS -->
-
     <h1 style="
       text-align:center;
       color:#38bdf8;
@@ -149,8 +124,6 @@ export const sendVerificationEmail = async (
       AI BUSINESS OPERATING SYSTEM
     </p>
 
-    <!-- TITLE -->
-
     <h2 style="
       text-align:center;
       margin-top:35px;
@@ -158,8 +131,6 @@ export const sendVerificationEmail = async (
     ">
       Verify Your Account
     </h2>
-
-    <!-- GREETING -->
 
     <p style="
       color:#cbd5e1;
@@ -175,8 +146,6 @@ export const sendVerificationEmail = async (
       Welcome to AIBOS! Use the verification code below
       to complete your registration.
     </p>
-
-    <!-- OTP BOX -->
 
     <div style="
       margin:30px 0;
@@ -209,8 +178,6 @@ export const sendVerificationEmail = async (
 
     </div>
 
-    <!-- EXPIRATION -->
-
     <p style="
       text-align:center;
       color:#94a3b8;
@@ -224,8 +191,6 @@ export const sendVerificationEmail = async (
         10 minutes
       </strong>.
     </p>
-
-    <!-- FOOTER -->
 
     <p style="
       text-align:center;
