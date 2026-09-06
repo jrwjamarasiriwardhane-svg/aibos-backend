@@ -137,3 +137,56 @@ export const getProfileImage = async (
     });
   }
 };
+
+// =====================================================
+// DELETE PROFILE IMAGE
+// =====================================================
+
+export const deleteProfileImage = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authenticated",
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.profileImageData = undefined;
+    user.profileImageContentType = undefined;
+    user.profileImage = "";
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile image deleted successfully",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        profileImage: "",
+      },
+    });
+  } catch (error) {
+    console.error("DELETE PROFILE IMAGE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete profile image",
+    });
+  }
+};

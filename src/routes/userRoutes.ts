@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   uploadProfileImage,
   getProfileImage,
+  deleteProfileImage,
 } from "../controllers/userController";
 
 import { protect } from "../middleware/authMiddleware";
@@ -20,6 +21,16 @@ router.post(
   protect,
   upload.single("profileImage"),
   uploadProfileImage
+);
+
+// =====================================================
+// DELETE PROFILE IMAGE
+// =====================================================
+
+router.delete(
+  "/profile-image",
+  protect,
+  deleteProfileImage
 );
 
 // =====================================================

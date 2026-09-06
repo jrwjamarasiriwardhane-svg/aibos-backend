@@ -1,76 +1,13 @@
-import dotenv from "dotenv";
-import nodemailer from "nodemailer";
-import path from "path";
+import "dotenv/config";
+import { Resend } from "resend";
 
-// ==========================================
-// LOAD ENVIRONMENT VARIABLES
-// ==========================================
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-dotenv.config({
-  path: path.resolve(process.cwd(), ".env"),
-});
-
-// ==========================================
-// EMAIL CONFIGURATION
-// ==========================================
-
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-
-// ==========================================
-// DEBUG
-// ==========================================
-
-console.log("=================================");
-console.log("📧 EMAIL ENVIRONMENT CHECK");
-console.log("=================================");
-console.log("EMAIL_USER:", EMAIL_USER ? "LOADED" : "MISSING");
-console.log("EMAIL_PASS:", EMAIL_PASS ? "LOADED" : "MISSING");
-console.log(
-  "EMAIL_PASS LENGTH:",
-  EMAIL_PASS?.length ?? 0
-);
-console.log("=================================");
-
-// ==========================================
-// VALIDATE
-// ==========================================
-
-if (!EMAIL_USER || !EMAIL_PASS) {
-  throw new Error(
-    "EMAIL_USER or EMAIL_PASS is missing in Render Environment Variables"
-  );
+if (!RESEND_API_KEY) {
+  throw new Error("RESEND_API_KEY is missing");
 }
 
-// ==========================================
-// GMAIL SMTP
-// ==========================================
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-
-  // STARTTLS
-  port: 587,
-
-  secure: false,
-
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS,
-  },
-
-  tls: {
-    rejectUnauthorized: false,
-  },
-
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-});
-
-// ==========================================
-// SEND VERIFICATION EMAIL
-// ==========================================
+const resend = new Resend(RESEND_API_KEY);
 
 export const sendVerificationEmail = async (
   email: string,
@@ -80,40 +17,24 @@ export const sendVerificationEmail = async (
   try {
     console.log("=================================");
     console.log("📧 SENDING VERIFICATION EMAIL");
-    console.log("=================================");
     console.log("📩 To:", email);
     console.log("👤 Name:", fullName);
     console.log("=================================");
 
-    // ==========================================
-    // CHECK SMTP CONNECTION
-    // ==========================================
-
-    await transporter.verify();
-
-    console.log("✅ Gmail SMTP connection successful");
-
-    // ==========================================
-    // SEND EMAIL
-    // ==========================================
-
-    const info = await transporter.sendMail({
-      from: `"AIBOS" <${EMAIL_USER}>`,
-      to: email,
+    const { data, error } = await resend.emails.send({
+      from: "AIBOS <onboarding@resend.dev>",
+      to: [email],
       subject: `🔐 ${code} is your AIBOS Verification Code`,
 
       html: `
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="UTF-8">
-
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
   >
-
   <title>AIBOS Verification</title>
 </head>
 
@@ -211,10 +132,7 @@ export const sendVerificationEmail = async (
       line-height:1.6;
     ">
       This code will expire in
-
-      <strong style="
-        color:#f59e0b;
-      ">
+      <strong style="color:#f59e0b;">
         10 minutes
       </strong>.
     </p>
@@ -236,30 +154,24 @@ export const sendVerificationEmail = async (
       `,
     });
 
-    // ==========================================
-    // SUCCESS
-    // ==========================================
+    if (error) {
+      console.error("❌ RESEND ERROR:", error);
+      throw new Error(error.message);
+    }
 
     console.log("=================================");
     console.log("✅ EMAIL SENT SUCCESSFULLY");
-    console.log("=================================");
     console.log("📩 To:", email);
-    console.log("📧 Message ID:", info.messageId);
+    console.log("📧 Resend ID:", data?.id);
     console.log("=================================");
 
-    return info;
+    return data;
 
   } catch (error) {
-
-    // ==========================================
-    // ERROR
-    // ==========================================
-
     console.error("=================================");
     console.error("❌ EMAIL SEND FAILED");
     console.error("=================================");
-    console.error("📩 To:", email);
-    console.error("Error:", error);
+    console.error(error);
     console.error("=================================");
 
     throw error;
